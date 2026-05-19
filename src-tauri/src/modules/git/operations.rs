@@ -287,34 +287,46 @@ pub fn unstage(
         return Ok(());
     }
     let resolved = resolve_pathspecs(&repo_root.local_path, paths)?;
-    let has_head = git_stdout_line_opt(
-        &repo_root.workspace,
-        &repo_root.git_path,
-        ["rev-parse", "--verify", "HEAD"],
-    )?
-    .is_some();
-    let mut args: Vec<OsString> = if has_head {
-        vec!["reset".into(), "HEAD".into(), "--".into()]
-    } else {
-        vec!["rm".into(), "--cached".into(), "-r".into(), "--".into()]
-    };
+    let mut reset_args: Vec<OsString> = vec!["reset".into(), "HEAD".into(), "--".into()];
     for p in &resolved {
-        args.push(p.clone().into());
+        reset_args.push(p.clone().into());
     }
     let output = run_git(
         &repo_root.workspace,
         Some(&repo_root.git_path),
-        args,
+        reset_args,
         DEFAULT_TIMEOUT_SECS,
     )?;
-    ensure_success(
-        &output,
-        if has_head {
-            "git reset failed"
-        } else {
-            "git rm --cached failed"
-        },
-    )
+    if output.exit_code == Some(0) {
+        return Ok(());
+    }
+    if !looks_like_no_head(&output) {
+        return ensure_success(&output, "git reset failed");
+    }
+    let mut rm_args: Vec<OsString> = vec![
+        "rm".into(),
+        "--cached".into(),
+        "-r".into(),
+        "--".into(),
+    ];
+    for p in &resolved {
+        rm_args.push(p.clone().into());
+    }
+    let output = run_git(
+        &repo_root.workspace,
+        Some(&repo_root.git_path),
+        rm_args,
+        DEFAULT_TIMEOUT_SECS,
+    )?;
+    ensure_success(&output, "git rm --cached failed")
+}
+
+fn looks_like_no_head(output: &GitOutput) -> bool {
+    let stderr = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+    stderr.contains("ambiguous argument 'head'")
+        || stderr.contains("unknown revision")
+        || stderr.contains("does not have any commits yet")
+        || stderr.contains("bad revision 'head'")
 }
 
 pub fn discard(

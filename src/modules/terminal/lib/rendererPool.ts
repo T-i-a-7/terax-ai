@@ -277,6 +277,7 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
   slot.lastH = p.container.clientHeight;
   if (slot.lastCols !== p.cols || slot.lastRows !== p.rows) {
     p.onScopeChange(slot.lastCols, slot.lastRows);
+    adapter?.resolveLeaf(p.leafId)?.resizePty(slot.lastCols, slot.lastRows);
   }
 
   if (p.searchQuery) {
@@ -323,7 +324,10 @@ function rewireSlot(slot: Slot, p: AcquireParams): void {
   slot.lastH = p.container.clientHeight;
   if (slot.term.cols !== p.cols || slot.term.rows !== p.rows) {
     p.onScopeChange(slot.term.cols, slot.term.rows);
+    adapter?.resolveLeaf(p.leafId)?.resizePty(slot.term.cols, slot.term.rows);
   }
+  slot.lastCols = slot.term.cols;
+  slot.lastRows = slot.term.rows;
   p.onSearchReady(slot.searchAddon);
 }
 
