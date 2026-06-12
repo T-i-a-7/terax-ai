@@ -143,15 +143,16 @@ type ChromeProps = {
   onSearch: (id: string) => void;
 };
 
+// No chrome while the command runs; the bar lands together with the divider
+// once the block is finished.
 function BlockChrome({ block, all, onSearch }: ChromeProps) {
+  if (block.running) return null;
   return (
     <>
-      {!block.running && (
-        <div
-          className={cn("bt-divider", !block.ok && "bt-divider-fail")}
-          style={{ top: block.bottom }}
-        />
-      )}
+      <div
+        className={cn("bt-divider", !block.ok && "bt-divider-fail")}
+        style={{ top: block.bottom }}
+      />
       <div className="bt-bar" style={{ top: block.headerTop }}>
         <Meta block={block} />
         <Toolbar block={block} all={all} onSearch={onSearch} />

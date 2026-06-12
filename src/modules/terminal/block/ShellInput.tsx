@@ -2,7 +2,7 @@ import { detectMonoFontFamily } from "@/lib/fonts";
 import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { usePreferencesStore } from "@/modules/settings/preferences";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   clearLeafBlockSelection,
   getLeafDraft,
@@ -49,7 +49,8 @@ export default function ShellInput({
   const leafIdRef = useRef(leafId);
   leafIdRef.current = leafId;
   const atPrompt = mode === "prompt";
-  const [empty, setEmpty] = useState(true);
+  const focusableRef = useRef(false);
+  focusableRef.current = focused && atPrompt;
 
   useEffect(() => {
     let alive = true;
@@ -74,12 +75,11 @@ export default function ShellInput({
       parent: host,
       fontFamily: fontRef.current.fontFamily,
       fontSize: fontRef.current.fontSize,
+      placeholderText: `Run a command  -  ↑ history  ${fmtShortcut(MOD_KEY, "U")} switch to AI`,
       commandNames: () => commandsRef.current,
       getCwd: () => cbRef.current.getCwd(),
-      onChange: (text) => {
-        setEmpty(text.length === 0);
-        setLeafInputActivity(leafIdRef.current, text.length > 0);
-      },
+      onChange: (text) =>
+        setLeafInputActivity(leafIdRef.current, text.length > 0),
       suggest: historySuggest,
       historyList,
       onSubmit: (text) => {
@@ -102,10 +102,16 @@ export default function ShellInput({
   }, []);
 
   // Retarget the single editor to the active leaf: register its focus callback
-  // and swap drafts so each leaf keeps its own unsent command.
+  // and swap drafts so each leaf keeps its own unsent command. New or switched
+  // tabs land with the cursor already in the input.
   useEffect(() => {
     setLeafInputFocus(leafId, () => handleRef.current?.focus());
     handleRef.current?.setValue(getLeafDraft(leafId));
+    requestAnimationFrame(() => {
+      if (focusableRef.current && leafIdRef.current === leafId) {
+        handleRef.current?.focus();
+      }
+    });
     return () => {
       const value = handleRef.current?.getValue() ?? "";
       setLeafDraft(leafId, value);
@@ -153,11 +159,6 @@ export default function ShellInput({
         ❯
       </span>
       <div ref={hostRef} className="min-w-0 flex-1" />
-      {atPrompt && empty && (
-        <span className="pointer-events-none shrink-0 select-none self-center pr-0.5 text-[10px] text-muted-foreground/40">
-          {fmtShortcut(MOD_KEY, "U")} switch · ↑ history
-        </span>
-      )}
     </div>
   );
 }
