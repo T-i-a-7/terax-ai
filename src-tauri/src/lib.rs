@@ -32,6 +32,20 @@ fn parse_launch_dir() -> Option<String> {
     None
 }
 
+fn window_state_flags() -> StateFlags {
+    let flags = StateFlags::all() & !StateFlags::VISIBLE;
+
+    #[cfg(target_os = "linux")]
+    {
+        flags & !StateFlags::SIZE
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        flags
+    }
+}
+
 #[tauri::command]
 async fn open_settings_window(app: tauri::AppHandle, tab: Option<String>) -> Result<(), String> {
     let url_path = match tab.as_deref() {
@@ -123,7 +137,7 @@ pub fn run() {
         // Windows/Linux.
         .plugin(
             tauri_plugin_window_state::Builder::new()
-                .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
+                .with_state_flags(window_state_flags())
                 .build(),
         )
         .plugin(tauri_plugin_autostart::Builder::new().build())
